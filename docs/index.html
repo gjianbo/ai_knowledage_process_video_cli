@@ -1,0 +1,664 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="canvas:width" content="1200">
+<meta name="canvas:height" content="900">
+<title>hive-cli 视频处理工具</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --seed-bg: #FFFFFF; --seed-fg: #1E293B; --seed-primary: #0B3D6B;
+    --seed-accent: #0D9488; --seed-surface: #F8FAFC; --seed-radius: 10px;
+
+    --deep-blue: var(--seed-primary);
+    --mid-blue: color-mix(in srgb, var(--seed-primary) 72%, #FFFFFF);
+    --cyan: var(--seed-accent);
+    --cyan-light: color-mix(in srgb, var(--seed-accent) 72%, #FFFFFF);
+    --bg: var(--seed-bg); --fg: var(--seed-fg);
+    --fg-soft: color-mix(in srgb, var(--seed-fg) 55%, var(--seed-bg));
+    --muted: color-mix(in srgb, var(--seed-fg) 40%, var(--seed-bg));
+    --border: color-mix(in srgb, var(--seed-fg) 12%, var(--seed-bg));
+    --surface: var(--seed-surface);
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.06);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+    --radius: var(--seed-radius);
+
+    --status-pending-bg: #FEF3C7; --status-pending-fg: #92400E;
+    --status-done-bg: #D1FAE5; --status-done-fg: #065F46;
+    --danger: #EF4444; --body-bg: #F1F5F9; --body-bg-mobile: #E2E8F0;
+    --upload-hover-bg: #F0FDFA;
+    --window-dot-red: #FF5F57; --window-dot-yellow: #FFBD2E; --window-dot-green: #27CA40;
+    --toggle-on: var(--cyan); --toggle-off: #CBD5E1;
+  }
+
+  body {
+    background: var(--body-bg);
+    font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", -apple-system, sans-serif;
+    color: var(--fg); display: flex; justify-content: center; align-items: center;
+    min-height: 100vh; padding: 24px;
+  }
+
+  /* ================================================================
+     MOBILE APP — main + login screens only
+     ================================================================ */
+  .app-mobile {
+    display: none; width: 390px; max-width: 100%;
+    background: var(--bg); border-radius: 24px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15); overflow: hidden;
+    flex-direction: column; min-height: 560px;
+  }
+
+  .app-topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px; border-bottom: 1px solid var(--border); background: var(--bg);
+  }
+  .app-logo { font-size: 18px; font-weight: 700; color: var(--deep-blue); letter-spacing: 0.02em; }
+  .avatar-btn {
+    width: 36px; height: 36px; border-radius: 50%; position: relative;
+    border: none; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; background: var(--border); color: var(--muted);
+    transition: background 0.2s;
+  }
+  .avatar-btn.logged-in { background: var(--deep-blue); color: #fff; }
+  .avatar-btn svg { width: 18px; height: 18px; }
+  .login-dot {
+    position: absolute; top: -2px; right: -2px;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--danger); border: 2px solid var(--bg);
+  }
+
+  .mobile-screen { display: none; flex-direction: column; flex: 1; }
+  .mobile-screen.active { display: flex; }
+
+  .screen-body { padding: 24px 20px; display: flex; flex-direction: column; gap: 20px; flex: 1; }
+
+  .upload-zone {
+    border: 2px dashed var(--border); border-radius: var(--radius);
+    padding: 32px 20px; text-align: center; cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .upload-zone:hover, .upload-zone.has-file { border-color: var(--cyan); background: var(--upload-hover-bg); }
+  .upload-zone.has-file { border-style: solid; }
+  .upload-icon-wrap {
+    width: 48px; height: 48px; margin: 0 auto 12px;
+    background: color-mix(in srgb, var(--cyan) 10%, transparent);
+    border-radius: 12px; display: flex; align-items: center; justify-content: center;
+  }
+  .upload-icon-wrap svg { width: 26px; height: 26px; color: var(--cyan); }
+  .upload-zone .label { font-size: 15px; font-weight: 600; color: var(--fg); margin-bottom: 4px; }
+  .upload-zone .hint { font-size: 12px; color: var(--muted); }
+
+  .file-card {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px; background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border);
+  }
+  .file-card .fi {
+    width: 40px; height: 40px; border-radius: 8px;
+    background: color-mix(in srgb, var(--deep-blue) 12%, transparent);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .file-card .fi svg { width: 22px; height: 22px; color: var(--deep-blue); }
+  .file-card .finfo { flex: 1; min-width: 0; }
+  .file-card .fname { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .file-card .fmeta { font-size: 12px; color: var(--muted); }
+
+  .cat-row {
+    display: none; align-items: center; gap: 10px;
+    padding: 14px 16px; background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border);
+  }
+  .cat-row.visible { display: flex; }
+  .cat-row .ci {
+    width: 36px; height: 36px; border-radius: 8px;
+    background: color-mix(in srgb, var(--cyan) 12%, transparent);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .cat-row .ci svg { width: 20px; height: 20px; color: var(--cyan); }
+  .cat-row select {
+    flex: 1; border: none; background: transparent; font-size: 14px;
+    font-family: inherit; color: var(--fg); outline: none; cursor: pointer;
+    appearance: none; padding-right: 8px;
+  }
+  .cat-row .arr { color: var(--muted); font-size: 12px; flex-shrink: 0; }
+
+  /* Toggle row — on main page, only visible when logged in */
+  .auto-upload-row {
+    display: none; align-items: center; justify-content: space-between;
+    padding: 12px 16px; background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border);
+  }
+  .auto-upload-row.visible { display: flex; }
+  .auto-upload-row span { font-size: 14px; font-weight: 500; color: var(--fg); }
+  .toggle {
+    width: 48px; height: 28px; border-radius: 14px;
+    background: var(--toggle-off); border: none; cursor: pointer;
+    position: relative; transition: background 0.2s; padding: 0;
+  }
+  .toggle.on { background: var(--toggle-on); }
+  .toggle::after {
+    content: ""; position: absolute; top: 3px; left: 3px;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #fff; transition: transform 0.2s;
+  }
+  .toggle.on::after { transform: translateX(20px); }
+
+  .btn-primary {
+    width: 100%; padding: 16px;
+    background: linear-gradient(135deg, var(--deep-blue), var(--mid-blue));
+    color: #fff; border: none; border-radius: var(--radius);
+    font-size: 16px; font-weight: 600; letter-spacing: 0.04em;
+    cursor: pointer; font-family: inherit; transition: opacity 0.2s;
+  }
+  .btn-primary:hover { opacity: 0.92; }
+
+  /* Login screen */
+  .back-row { padding: 8px 12px; }
+  .btn-back {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: none; border: none; color: var(--muted); font-size: 14px;
+    cursor: pointer; font-family: inherit; padding: 6px 10px; border-radius: 8px;
+  }
+  .btn-back:hover { background: var(--surface); }
+  .btn-back svg { width: 18px; height: 18px; }
+  .login-body { padding: 32px 24px; display: flex; flex-direction: column; gap: 20px; flex: 1; }
+  .login-body h2 { font-size: 22px; font-weight: 700; color: var(--deep-blue); letter-spacing: 0.03em; text-align: center; }
+  .input-group { display: flex; flex-direction: column; gap: 6px; }
+  .input-group label { font-size: 13px; font-weight: 600; color: var(--fg-soft); letter-spacing: 0.02em; }
+  .input-group input {
+    padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius);
+    font-size: 15px; font-family: inherit; color: var(--fg); outline: none;
+  }
+  .input-group input:focus { border-color: var(--cyan); }
+
+  /* Logout menu */
+  .logout-menu {
+    display: none; position: absolute; top: 56px; right: 20px; width: 180px;
+    background: var(--bg); border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.14);
+    border: 1px solid var(--border); z-index: 10; overflow: hidden;
+  }
+  .logout-menu.active { display: block; }
+  .logout-menu .user-info { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+  .logout-menu .user-info .uname { font-size: 15px; font-weight: 600; }
+  .logout-menu .user-info .ustatus { font-size: 12px; color: var(--cyan); }
+  .logout-menu .menu-item {
+    display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+    font-size: 14px; cursor: pointer; transition: background 0.15s;
+  }
+  .logout-menu .menu-item:hover { background: var(--surface); }
+  .logout-menu .menu-item.danger { color: var(--danger); }
+  .logout-menu .menu-item svg { width: 18px; height: 18px; }
+
+  .app-footer-text { text-align: center; font-size: 11px; color: var(--muted); padding: 0 20px 16px; }
+
+  /* ================================================================
+     DESKTOP APP
+     ================================================================ */
+  .app-desktop {
+    width: 1100px; max-width: 100%;
+    background: var(--bg); border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+    overflow: hidden; flex-direction: column;
+  }
+  .desk-titlebar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 24px; background: var(--deep-blue); color: #fff;
+  }
+  .desk-titlebar .desk-title { font-size: 15px; font-weight: 600; letter-spacing: 0.03em; }
+  .desk-titlebar .window-dots { display: flex; gap: 8px; }
+  .desk-titlebar .window-dots span { width: 12px; height: 12px; border-radius: 50%; display: block; }
+  .desk-titlebar .window-dots span:nth-child(1) { background: var(--window-dot-red); }
+  .desk-titlebar .window-dots span:nth-child(2) { background: var(--window-dot-yellow); }
+  .desk-titlebar .window-dots span:nth-child(3) { background: var(--window-dot-green); }
+
+  .desk-toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 24px; border-bottom: 1px solid var(--border); gap: 16px;
+  }
+  .desk-toolbar-left { display: flex; align-items: center; gap: 12px; }
+  .btn-select-video {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px; background: var(--deep-blue); color: #fff;
+    border: none; border-radius: 8px; font-size: 14px; font-weight: 600;
+    letter-spacing: 0.02em; cursor: pointer; font-family: inherit;
+  }
+  .btn-select-video:hover { opacity: 0.9; }
+  .btn-select-video svg { width: 18px; height: 18px; }
+  .file-count { font-size: 13px; color: var(--muted); }
+
+  .desk-toolbar-right { display: flex; align-items: center; gap: 10px; position: relative; }
+  .desk-user-area {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 14px 6px 6px; border-radius: 24px;
+    border: 1px solid var(--border); cursor: pointer; transition: background 0.2s;
+  }
+  .desk-user-area:hover { background: var(--surface); }
+  .desk-avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--border); display: flex; align-items: center; justify-content: center;
+  }
+  .desk-avatar svg { width: 16px; height: 16px; color: var(--muted); }
+  .desk-avatar.logged-in { background: var(--deep-blue); }
+  .desk-avatar.logged-in svg { color: #fff; }
+  .desk-user-text { font-size: 13px; color: var(--fg); }
+
+  .desk-panel {
+    display: none; position: absolute; top: 100%; right: 0; margin-top: 8px;
+    width: 220px; background: var(--bg); border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.14); border: 1px solid var(--border);
+    z-index: 10; overflow: hidden;
+  }
+  .desk-panel.active { display: block; }
+  .desk-panel .panel-body { padding: 12px 0; }
+  .desk-panel .panel-user { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+  .desk-panel .panel-user .uname { font-size: 15px; font-weight: 600; }
+  .desk-panel .panel-user .ustatus { font-size: 12px; color: var(--cyan); }
+  .desk-panel .login-body { padding: 20px; gap: 14px; }
+  .desk-panel .login-body h3 { font-size: 16px; font-weight: 700; color: var(--deep-blue); }
+  .desk-panel .input-group { display: flex; flex-direction: column; gap: 6px; }
+  .desk-panel .input-group label { font-size: 12px; font-weight: 600; color: var(--fg-soft); }
+  .desk-panel .input-group input {
+    padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 14px; font-family: inherit; color: var(--fg); outline: none;
+  }
+  .desk-panel .input-group input:focus { border-color: var(--cyan); }
+  .desk-panel .menu-item {
+    display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+    font-size: 14px; cursor: pointer;
+  }
+  .desk-panel .menu-item:hover { background: var(--surface); }
+  .desk-panel .menu-item.danger { color: var(--danger); }
+  .desk-panel .menu-item svg { width: 18px; height: 18px; }
+  .btn-small {
+    padding: 8px 16px; border: none; border-radius: 8px;
+    font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  .btn-small.primary { background: var(--deep-blue); color: #fff; }
+
+  .desk-table-wrap { padding: 24px; flex: 1; min-height: 240px; }
+  .video-table .empty-row {
+    text-align: center; color: var(--muted); font-size: 13px;
+    padding: 56px 16px; border-bottom: 0;
+  }
+
+  .video-table { width: 100%; border-collapse: collapse; }
+  .video-table th {
+    text-align: left; padding: 10px 16px; font-size: 12px; font-weight: 600;
+    color: var(--muted); letter-spacing: 0.04em; border-bottom: 2px solid var(--border);
+  }
+  .video-table td { padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .video-table .col-name { font-weight: 600; display: flex; align-items: center; gap: 10px; }
+  .video-table .col-name .v-icon {
+    width: 32px; height: 32px; border-radius: 6px;
+    background: color-mix(in srgb, var(--deep-blue) 10%, transparent);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .video-table .col-name .v-icon svg { width: 16px; height: 16px; color: var(--deep-blue); }
+  .video-table .col-name .v-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+  .video-table select {
+    padding: 6px 32px 6px 12px; border: 1px solid var(--border); border-radius: 6px;
+    font-size: 13px; font-family: inherit; color: var(--fg);
+    background: var(--bg); cursor: pointer; appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 5l3 3 3-3' fill='none' stroke='%2364748B' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 8px center;
+  }
+  .video-table .col-status { font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 12px; display: inline-block; }
+  .status-pending { background: var(--status-pending-bg); color: var(--status-pending-fg); }
+  .status-done { background: var(--status-done-bg); color: var(--status-done-fg); }
+  .video-table .row-actions button { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 12px; padding: 2px 6px; }
+  .video-table .row-actions button:hover { color: var(--danger); }
+
+  .desk-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 24px; border-top: 1px solid var(--border);
+  }
+  .desk-footer .summary { font-size: 13px; color: var(--muted); }
+  .desk-footer .footer-right { display: flex; align-items: center; gap: 16px; }
+
+  .desk-auto-row {
+    display: none; align-items: center; gap: 8px; font-size: 13px; color: var(--fg-soft);
+  }
+  .desk-auto-row.visible { display: flex; }
+
+  .btn-process-all {
+    padding: 12px 32px;
+    background: linear-gradient(135deg, var(--deep-blue), var(--mid-blue));
+    color: #fff; border: none; border-radius: 8px;
+    font-size: 15px; font-weight: 600; letter-spacing: 0.03em;
+    cursor: pointer; font-family: inherit;
+  }
+  .btn-process-all:hover { opacity: 0.92; }
+  .btn-process-all:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .version-text { font-size: 11px; color: var(--muted); margin-left: 4px; }
+
+  @media (max-width: 767px) {
+    .app-desktop { display: none; }
+    .app-mobile { display: flex; }
+    body { padding: 12px; background: var(--body-bg-mobile); }
+  }
+  @media (min-width: 768px) {
+    .app-mobile { display: none; }
+    .app-desktop { display: flex; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================
+     MOBILE APP
+     ============================ -->
+<main class="app-mobile" data-component="mobile-app">
+
+  <!-- === MAIN SCREEN === -->
+  <div class="mobile-screen active" id="screenMain" data-component="screen-main">
+    <header class="app-topbar">
+      <span class="app-logo">hive-cli</span>
+      <button class="avatar-btn" id="mobileAvatar" onclick="handleMobileAvatar()" aria-label="用户" data-component="btn-avatar">
+        <div class="login-dot" id="mobileDot"></div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+        </svg>
+      </button>
+    </header>
+
+    <div class="screen-body">
+      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('mobileFileInput').click()">
+        <div class="upload-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+          </svg>
+        </div>
+        <div class="label">选择视频</div>
+        <div class="hint">MP4 / MOV / AVI</div>
+      </div>
+      <input type="file" id="mobileFileInput" hidden accept="video/*" multiple onchange="handleMobileFile(this)" aria-label="选择视频文件">
+      <div id="mobileFileList"></div>
+
+      <div class="cat-row" id="mobileCatRow">
+        <div class="ci">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+          </svg>
+        </div>
+        <select aria-label="选择目标分类">
+          <option value="">选择目标分类</option>
+          <option>会议记录</option><option>产品培训</option><option>代码评审</option><option>项目周报</option><option>技术分享</option>
+        </select>
+        <span class="arr">&#9662;</span>
+      </div>
+
+      <div class="auto-upload-row" id="autoUploadRow" data-component="auto-upload-toggle">
+        <span>处理完自动上传</span>
+        <button class="toggle on" id="autoUploadToggle" onclick="toggleAutoUpload()" aria-label="自动上传开关"></button>
+      </div>
+
+      <button class="btn-primary">开始处理</button>
+    </div>
+    <footer class="app-footer-text">知桥 Hive · hive-cli <span class="version-text">v1.2.0</span></footer>
+  </div>
+
+  <!-- === LOGIN SCREEN === -->
+  <div class="mobile-screen" id="screenLogin" data-component="screen-login">
+    <div class="back-row">
+      <button class="btn-back" onclick="showScreen('main')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        返回
+      </button>
+    </div>
+    <div class="login-body">
+      <h2>登录知桥</h2>
+      <div class="input-group">
+        <label for="mServer">服务器地址</label>
+        <input id="mServer" type="text" placeholder="https://hive.example.com" value="https://hive.example.com">
+      </div>
+      <div class="input-group">
+        <label for="mUser">用户名</label>
+        <input id="mUser" type="text" placeholder="请输入用户名">
+      </div>
+      <div class="input-group">
+        <label for="mPass">密码</label>
+        <input id="mPass" type="password" placeholder="请输入密码">
+      </div>
+      <button class="btn-primary" onclick="doLogin()">登 录</button>
+    </div>
+  </div>
+
+  <!-- Logout popup (shown on main screen) -->
+  <div class="logout-menu" id="logoutMenu">
+    <div class="user-info">
+      <div class="uname">管理员</div>
+      <div class="ustatus">已登录</div>
+    </div>
+    <div class="menu-item danger" onclick="doLogout()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      退出登录
+    </div>
+  </div>
+</main>
+
+<!-- ============================
+     DESKTOP APP
+     ============================ -->
+<main class="app-desktop" data-component="desktop-app">
+
+  <header class="desk-titlebar">
+    <div class="window-dots"><span></span><span></span><span></span></div>
+    <span class="desk-title">hive-cli — 视频处理工具 <span style="font-weight:400;font-size:11px;opacity:0.7">v1.2.0</span></span>
+    <span style="width:44px"></span>
+  </header>
+
+  <div class="desk-toolbar">
+    <div class="desk-toolbar-left">
+      <button class="btn-select-video" onclick="document.getElementById('deskFileInput').click()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        选择视频
+      </button>
+      <span class="file-count" id="deskFileCount">未选择视频</span>
+    </div>
+    <input type="file" id="deskFileInput" hidden accept="video/*" multiple onchange="handleDeskFile(this)" aria-label="选择视频文件">
+
+    <div class="desk-toolbar-right">
+      <div style="position:relative">
+        <div class="desk-user-area" onclick="toggleDeskPanel()" id="deskUserBtn">
+          <div class="desk-avatar" id="deskAvatar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+          </div>
+          <span class="desk-user-text" id="deskUserText">登录</span>
+        </div>
+        <div class="desk-panel" id="deskPanel">
+          <!-- Login form (not logged in) -->
+          <div class="panel-body login-body" id="deskLoginBody">
+            <h3>登录知桥</h3>
+            <div class="input-group">
+              <label for="dServer">服务器地址</label>
+              <input id="dServer" type="text" value="https://hive.example.com">
+            </div>
+            <div class="input-group">
+              <label for="dUser">用户名</label>
+              <input id="dUser" type="text" placeholder="请输入用户名">
+            </div>
+            <div class="input-group">
+              <label for="dPass">密码</label>
+              <input id="dPass" type="password" placeholder="请输入密码">
+            </div>
+            <button class="btn-small primary" onclick="doLoginDesk()">登 录</button>
+          </div>
+          <!-- Logged-in menu -->
+          <div class="panel-body" id="deskUserInfo" style="display:none">
+            <div class="panel-user">
+              <div class="uname">管理员</div>
+              <div class="ustatus">已登录</div>
+            </div>
+            <div class="menu-item danger" onclick="doLogoutDesk()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              退出登录
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="desk-table-wrap">
+    <table class="video-table" id="deskTable">
+      <thead><tr><th style="width:40%">视频文件</th><th style="width:25%">目标分类</th><th style="width:15%">状态</th><th style="width:8%"></th></tr></thead>
+      <tbody id="deskTbody"></tbody>
+    </table>
+  </div>
+
+  <footer class="desk-footer">
+    <span class="summary" id="deskSummary">共 0 个视频</span>
+    <div class="footer-right">
+      <div class="desk-auto-row" id="deskAutoRow" data-component="desk-auto-upload">
+        <span>处理完自动上传</span>
+        <button class="toggle on" id="deskAutoToggle" onclick="toggleDeskAuto()" aria-label="自动上传开关"></button>
+      </div>
+      <button class="btn-process-all" disabled>全部处理</button>
+    </div>
+  </footer>
+</main>
+
+<script>
+  let isLoggedIn = false;
+  let autoUpload = true;
+  let deskFiles = [];
+
+  function updateUI() {
+    const mAv = document.getElementById('mobileAvatar');
+    const mDot = document.getElementById('mobileDot');
+    const catRow = document.getElementById('mobileCatRow');
+    const autoRow = document.getElementById('autoUploadRow');
+    const autoTgl = document.getElementById('autoUploadToggle');
+    const deskAv = document.getElementById('deskAvatar');
+    const deskUt = document.getElementById('deskUserText');
+    const deskLogin = document.getElementById('deskLoginBody');
+    const deskInfo = document.getElementById('deskUserInfo');
+    const deskAuto = document.getElementById('deskAutoRow');
+    const deskTgl = document.getElementById('deskAutoToggle');
+
+    if (isLoggedIn) {
+      mAv.classList.add('logged-in'); mDot.style.display = 'none';
+      if (catRow) catRow.classList.add('visible');
+      autoRow.classList.add('visible');
+      autoTgl.className = 'toggle ' + (autoUpload ? 'on' : '');
+      deskAv.classList.add('logged-in'); deskUt.textContent = '管理员';
+      deskLogin.style.display = 'none'; deskInfo.style.display = 'block';
+      deskAuto.classList.add('visible');
+      deskTgl.className = 'toggle ' + (autoUpload ? 'on' : '');
+    } else {
+      mAv.classList.remove('logged-in'); mDot.style.display = 'block';
+      if (catRow) catRow.classList.remove('visible');
+      autoRow.classList.remove('visible');
+      deskAv.classList.remove('logged-in'); deskUt.textContent = '登录';
+      deskLogin.style.display = 'flex'; deskInfo.style.display = 'none';
+      deskAuto.classList.remove('visible');
+    }
+    updateDeskTable();
+  }
+
+  /* ===== MOBILE ===== */
+  function showScreen(name) {
+    document.querySelectorAll('.mobile-screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('active');
+    document.getElementById('logoutMenu').classList.remove('active');
+    document.getElementById('deskPanel').classList.remove('active');
+  }
+
+  function handleMobileAvatar() {
+    if (isLoggedIn) {
+      document.getElementById('logoutMenu').classList.toggle('active');
+    } else {
+      showScreen('login');
+    }
+  }
+
+  function doLogin() { isLoggedIn = true; updateUI(); showScreen('main'); }
+  function doLogout() { isLoggedIn = false; autoUpload = false; updateUI(); showScreen('main'); }
+  function toggleAutoUpload() { autoUpload = !autoUpload; updateUI(); }
+
+  function handleMobileFile(input) {
+    const files = input.files;
+    if (!files.length) return;
+    const list = document.getElementById('mobileFileList');
+    const zone = document.getElementById('uploadZone');
+    zone.classList.add('has-file'); list.innerHTML = '';
+    for (let f of files) {
+      const card = document.createElement('div');
+      card.className = 'file-card';
+      card.innerHTML = `<div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></div><div class="finfo"><div class="fname">${f.name}</div><div class="fmeta">${(f.size/1024/1024).toFixed(1)} MB</div></div>`;
+      list.appendChild(card);
+    }
+    zone.querySelector('.label').textContent = `已选 ${files.length} 个视频`;
+    zone.querySelector('.hint').textContent = '点击可重新选择';
+  }
+
+  /* ===== DESKTOP ===== */
+  function handleDeskFile(input) {
+    if (!input.files.length) return;
+    deskFiles = Array.from(input.files);
+    updateDeskTable();
+  }
+
+  function updateDeskTable() {
+    const table = document.getElementById('deskTable');
+    const tbody = document.getElementById('deskTbody');
+    const count = document.getElementById('deskFileCount');
+    const summary = document.getElementById('deskSummary');
+    const btn = document.querySelector('.btn-process-all');
+    const colCount = isLoggedIn ? 4 : 3;
+
+    // Update thead based on login
+    const thead = table.querySelector('thead');
+    thead.innerHTML = isLoggedIn
+      ? '<tr><th style="width:40%">视频文件</th><th style="width:25%">目标分类</th><th style="width:15%">状态</th><th style="width:8%"></th></tr>'
+      : '<tr><th style="width:60%">视频文件</th><th style="width:20%">状态</th><th style="width:8%"></th></tr>';
+
+    table.style.display = '';
+
+    if (!deskFiles.length) {
+      count.textContent = '未选择视频'; summary.textContent = '共 0 个视频'; btn.disabled = true;
+      tbody.innerHTML = `<tr><td colspan="${colCount}" class="empty-row">点击「选择视频」添加待处理的视频文件，支持 MP4 / MOV / AVI 格式</td></tr>`;
+      return;
+    }
+    count.textContent = `已选 ${deskFiles.length} 个视频`;
+    summary.textContent = `共 ${deskFiles.length} 个视频，就绪待处理`; btn.disabled = false;
+
+    tbody.innerHTML = deskFiles.map((f, i) => {
+      const catCol = isLoggedIn
+        ? '<td><select aria-label="选择目标分类"><option value="">选择分类</option><option>会议记录</option><option>产品培训</option><option>代码评审</option><option>项目周报</option><option>技术分享</option></select></td>'
+        : '';
+      return `<tr>
+        <td><div class="col-name"><div class="v-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></div><span class="v-name">${f.name}</span></div></td>
+        ${catCol}
+        <td><span class="col-status status-pending">待处理</span></td>
+        <td class="row-actions"><button onclick="removeDeskFile(${i})" title="移除">✕</button></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function removeDeskFile(i) { deskFiles.splice(i, 1); updateDeskTable(); }
+
+  function toggleDeskPanel() {
+    document.getElementById('deskPanel').classList.toggle('active');
+    document.getElementById('logoutMenu').classList.remove('active');
+  }
+
+  function doLoginDesk() { isLoggedIn = true; updateUI(); document.getElementById('deskPanel').classList.remove('active'); }
+  function doLogoutDesk() { isLoggedIn = false; autoUpload = false; updateUI(); document.getElementById('deskPanel').classList.remove('active'); }
+  function toggleDeskAuto() { autoUpload = !autoUpload; updateUI(); }
+
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.desk-toolbar-right')) document.getElementById('deskPanel').classList.remove('active');
+    if (!e.target.closest('#mobileAvatar') && !e.target.closest('#logoutMenu')) document.getElementById('logoutMenu').classList.remove('active');
+  });
+
+  updateUI();
+</script>
+
+</body>
+</html>
