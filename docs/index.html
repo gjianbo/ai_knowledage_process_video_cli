@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="canvas:width" content="1200">
 <meta name="canvas:height" content="900">
-<title>hive-cli 视频处理工具</title>
+<title>hive-cli 跨平台资料上传客户端</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -28,6 +28,8 @@
 
     --status-pending-bg: #FEF3C7; --status-pending-fg: #92400E;
     --status-done-bg: #D1FAE5; --status-done-fg: #065F46;
+    --status-direct-bg: #E0F2FE; --status-direct-fg: #075985;
+    --type-video: #2563EB; --type-audio: #D97706; --type-image: #059669;
     --danger: #EF4444; --body-bg: #F1F5F9; --body-bg-mobile: #E2E8F0;
     --upload-hover-bg: #F0FDFA;
     --window-dot-red: #FF5F57; --window-dot-yellow: #FFBD2E; --window-dot-green: #27CA40;
@@ -101,6 +103,14 @@
     display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   }
   .file-card .fi svg { width: 22px; height: 22px; color: var(--deep-blue); }
+
+  /* 资源类型配色：视频 / 音频 / 图片 / 文档 */
+  .fi.fi-video, .video-table .v-icon.fi-video { background: color-mix(in srgb, var(--type-video) 12%, transparent); }
+  .fi.fi-video svg, .video-table .v-icon.fi-video svg { color: var(--type-video); }
+  .fi.fi-audio, .video-table .v-icon.fi-audio { background: color-mix(in srgb, var(--type-audio) 12%, transparent); }
+  .fi.fi-audio svg, .video-table .v-icon.fi-audio svg { color: var(--type-audio); }
+  .fi.fi-image, .video-table .v-icon.fi-image { background: color-mix(in srgb, var(--type-image) 12%, transparent); }
+  .fi.fi-image svg, .video-table .v-icon.fi-image svg { color: var(--type-image); }
   .file-card .finfo { flex: 1; min-width: 0; }
   .file-card .fname { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .file-card .fmeta { font-size: 12px; color: var(--muted); }
@@ -305,6 +315,13 @@
   .video-table .col-status { font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 12px; display: inline-block; }
   .status-pending { background: var(--status-pending-bg); color: var(--status-pending-fg); }
   .status-done { background: var(--status-done-bg); color: var(--status-done-fg); }
+  .status-direct { background: var(--status-direct-bg); color: var(--status-direct-fg); }
+  .video-table .col-type { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; white-space: nowrap; }
+  .video-table .col-type svg { width: 16px; height: 16px; }
+  .t-video { color: var(--type-video); }
+  .t-audio { color: var(--type-audio); }
+  .t-image { color: var(--type-image); }
+  .t-doc { color: var(--deep-blue); }
   .video-table .row-actions button { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 12px; padding: 2px 6px; }
   .video-table .row-actions button:hover { color: var(--danger); }
 
@@ -366,13 +383,13 @@
       <div class="upload-zone" id="uploadZone" onclick="document.getElementById('mobileFileInput').click()">
         <div class="upload-icon-wrap">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
           </svg>
         </div>
-        <div class="label">选择视频</div>
-        <div class="hint">MP4 / MOV / AVI</div>
+        <div class="label">选择文件</div>
+        <div class="hint">视频 / 音频 / 图片 / 文档</div>
       </div>
-      <input type="file" id="mobileFileInput" hidden accept="video/*" multiple onchange="handleMobileFile(this)" aria-label="选择视频文件">
+      <input type="file" id="mobileFileInput" hidden accept="video/*,audio/*,image/*,.pdf,.doc,.docx,.txt,.md" multiple onchange="handleMobileFile(this)" aria-label="选择文件">
       <div id="mobileFileList"></div>
 
       <div class="cat-row" id="mobileCatRow">
@@ -444,7 +461,7 @@
 
   <header class="desk-titlebar">
     <div class="window-dots"><span></span><span></span><span></span></div>
-    <span class="desk-title">hive-cli — 视频处理工具 <span style="font-weight:400;font-size:11px;opacity:0.7">v1.2.0</span></span>
+<span class="desk-title">hive-cli — 跨平台资料上传客户端 <span style="font-weight:400;font-size:11px;opacity:0.7">v1.2.0</span></span>
     <span style="width:44px"></span>
   </header>
 
@@ -454,11 +471,11 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
         </svg>
-        选择视频
+        选择文件
       </button>
-      <span class="file-count" id="deskFileCount">未选择视频</span>
+      <span class="file-count" id="deskFileCount">未选择文件</span>
     </div>
-    <input type="file" id="deskFileInput" hidden accept="video/*" multiple onchange="handleDeskFile(this)" aria-label="选择视频文件">
+    <input type="file" id="deskFileInput" hidden accept="video/*,audio/*,image/*,.pdf,.doc,.docx,.txt,.md" multiple onchange="handleDeskFile(this)" aria-label="选择文件">
 
     <div class="desk-toolbar-right">
       <div style="position:relative">
@@ -506,13 +523,13 @@
 
   <div class="desk-table-wrap">
     <table class="video-table" id="deskTable">
-      <thead><tr><th style="width:40%">视频文件</th><th style="width:25%">目标分类</th><th style="width:15%">状态</th><th style="width:8%"></th></tr></thead>
+      <thead><tr><th style="width:9%">类型</th><th style="width:35%">文件</th><th style="width:25%">目标分类</th><th style="width:15%">状态</th><th style="width:8%"></th></tr></thead>
       <tbody id="deskTbody"></tbody>
     </table>
   </div>
 
   <footer class="desk-footer">
-    <span class="summary" id="deskSummary">共 0 个视频</span>
+    <span class="summary" id="deskSummary">共 0 个文件</span>
     <div class="footer-right">
       <div class="desk-auto-row" id="deskAutoRow" data-component="desk-auto-upload">
         <span>处理完自动上传</span>
@@ -527,6 +544,22 @@
   let isLoggedIn = false;
   let autoUpload = true;
   let deskFiles = [];
+
+  /* 根据扩展名识别资源类型：视频 / 音频 / 图片 / 文档 */
+  function getFileType(name) {
+    const ext = name.split('.').pop().toLowerCase();
+    const videoExt = ['mp4','mov','avi','mkv','webm'];
+    const audioExt = ['mp3','wav','m4a','aac','flac'];
+    const imageExt = ['png','jpg','jpeg','webp','gif','bmp'];
+    const videoIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>';
+    const audioIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
+    const imageIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
+    const docIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+    if (videoExt.includes(ext)) return { key: 'video', label: '视频', icon: videoIcon };
+    if (audioExt.includes(ext)) return { key: 'audio', label: '音频', icon: audioIcon };
+    if (imageExt.includes(ext)) return { key: 'image', label: '图片', icon: imageIcon };
+    return { key: 'doc', label: '文档', icon: docIcon };
+  }
 
   function updateUI() {
     const mAv = document.getElementById('mobileAvatar');
@@ -587,14 +620,18 @@
     const list = document.getElementById('mobileFileList');
     const zone = document.getElementById('uploadZone');
     zone.classList.add('has-file'); list.innerHTML = '';
+    const cnt = { 视频: 0, 音频: 0, 图片: 0, 文档: 0 };
     for (let f of files) {
+      const t = getFileType(f.name);
+      cnt[t.label]++;
       const card = document.createElement('div');
       card.className = 'file-card';
-      card.innerHTML = `<div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></div><div class="finfo"><div class="fname">${f.name}</div><div class="fmeta">${(f.size/1024/1024).toFixed(1)} MB</div></div>`;
+      card.innerHTML = `<div class="fi fi-${t.key}">${t.icon}</div><div class="finfo"><div class="fname">${f.name}</div><div class="fmeta">${t.label} · ${(f.size/1024/1024).toFixed(1)} MB</div></div>`;
       list.appendChild(card);
     }
-    zone.querySelector('.label').textContent = `已选 ${files.length} 个视频`;
-    zone.querySelector('.hint').textContent = '点击可重新选择';
+    const parts = Object.entries(cnt).filter(([, n]) => n).map(([k, n]) => `${k} ${n}`).join(' · ');
+    zone.querySelector('.label').textContent = `已选 ${files.length} 个文件`;
+    zone.querySelector('.hint').textContent = `${parts} · 点击可重新选择`;
   }
 
   /* ===== DESKTOP ===== */
@@ -610,32 +647,40 @@
     const count = document.getElementById('deskFileCount');
     const summary = document.getElementById('deskSummary');
     const btn = document.querySelector('.btn-process-all');
-    const colCount = isLoggedIn ? 4 : 3;
+    const colCount = isLoggedIn ? 5 : 4;
 
     // Update thead based on login
     const thead = table.querySelector('thead');
     thead.innerHTML = isLoggedIn
-      ? '<tr><th style="width:40%">视频文件</th><th style="width:25%">目标分类</th><th style="width:15%">状态</th><th style="width:8%"></th></tr>'
-      : '<tr><th style="width:60%">视频文件</th><th style="width:20%">状态</th><th style="width:8%"></th></tr>';
+      ? '<tr><th style="width:9%">类型</th><th style="width:33%">文件</th><th style="width:25%">目标分类</th><th style="width:15%">状态</th><th style="width:8%"></th></tr>'
+      : '<tr><th style="width:9%">类型</th><th style="width:55%">文件</th><th style="width:18%">状态</th><th style="width:8%"></th></tr>';
 
     table.style.display = '';
 
     if (!deskFiles.length) {
-      count.textContent = '未选择视频'; summary.textContent = '共 0 个视频'; btn.disabled = true;
-      tbody.innerHTML = `<tr><td colspan="${colCount}" class="empty-row">点击「选择视频」添加待处理的视频文件，支持 MP4 / MOV / AVI 格式</td></tr>`;
+      count.textContent = '未选择文件'; summary.textContent = '共 0 个文件'; btn.disabled = true;
+      tbody.innerHTML = `<tr><td colspan="${colCount}" class="empty-row">点击「选择文件」添加待入库的资源，支持 视频 MP4/MOV/AVI · 音频 MP3/WAV/M4A · 图片 PNG/JPG/WebP · 文档 PDF/DOCX/TXT/MD</td></tr>`;
       return;
     }
-    count.textContent = `已选 ${deskFiles.length} 个视频`;
-    summary.textContent = `共 ${deskFiles.length} 个视频，就绪待处理`; btn.disabled = false;
+    const cnt = { 视频: 0, 音频: 0, 图片: 0, 文档: 0 };
+    deskFiles.forEach(f => cnt[getFileType(f.name).label]++);
+    const parts = Object.entries(cnt).filter(([, n]) => n).map(([k, n]) => `${k} ${n}`).join(' · ');
+    count.textContent = `已选 ${deskFiles.length} 个文件`;
+    summary.textContent = `共 ${deskFiles.length} 个文件（${parts}），就绪待处理`; btn.disabled = false;
 
     tbody.innerHTML = deskFiles.map((f, i) => {
+      const t = getFileType(f.name);
       const catCol = isLoggedIn
         ? '<td><select aria-label="选择目标分类"><option value="">选择分类</option><option>会议记录</option><option>产品培训</option><option>代码评审</option><option>项目周报</option><option>技术分享</option></select></td>'
         : '';
+      const statusCol = t.key === 'video'
+        ? '<span class="col-status status-pending">待处理</span>'
+        : '<span class="col-status status-direct">待上传</span>';
       return `<tr>
-        <td><div class="col-name"><div class="v-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></div><span class="v-name">${f.name}</span></div></td>
+        <td><div class="col-type t-${t.key}">${t.icon}<span>${t.label}</span></div></td>
+        <td><div class="col-name"><div class="v-icon fi-${t.key}">${t.icon}</div><span class="v-name">${f.name}</span></div></td>
         ${catCol}
-        <td><span class="col-status status-pending">待处理</span></td>
+        <td>${statusCol}</td>
         <td class="row-actions"><button onclick="removeDeskFile(${i})" title="移除">✕</button></td>
       </tr>`;
     }).join('');
