@@ -21,7 +21,7 @@ class HiveCliApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-    title: 'hive-cli',
+    title: '知桥 Hive',
     debugShowCheckedModeBanner: false,
     theme: ThemeData(
       useMaterial3: true,
@@ -635,7 +635,7 @@ class _UploadHomePageState extends State<UploadHomePage> {
       }
       return Scaffold(
         appBar: AppBar(
-          title: Text(desktop ? 'hive-cli — 跨平台资料上传客户端' : 'hive-cli'),
+          title: Text(desktop ? '知桥 Hive — 跨平台资料上传客户端' : '知桥 Hive'),
           actions: [
             TextButton.icon(
               onPressed: _loggedIn ? _logout : _showLogin,
