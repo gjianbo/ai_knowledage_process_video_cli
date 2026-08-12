@@ -79,6 +79,22 @@ class _UploadHomePageState extends State<UploadHomePage> {
 
   bool get _loggedIn => _session != null;
 
+  HiveApi get _requireApi {
+    final api = _api;
+    if (api == null) {
+      throw StateError('登录态异常：API 实例未初始化。');
+    }
+    return api;
+  }
+
+  LoginSession get _requireSession {
+    final session = _session;
+    if (session == null) {
+      throw StateError('登录态异常：会话未初始化。');
+    }
+    return session;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -322,11 +338,11 @@ class _UploadHomePageState extends State<UploadHomePage> {
       item.progress = 0;
       item.detail = '正在提交至知桥（0%）…';
     });
-    final operation = _api!.upload(
+    final operation = _requireApi.upload(
       file: file,
       assetKind: assetKind,
       category: item.category!,
-      token: _session!.token,
+      token: _requireSession.token,
       onProgress: (progress) {
         if (mounted && item.status == JobStatus.uploading) {
           setState(() {
@@ -374,7 +390,7 @@ class _UploadHomePageState extends State<UploadHomePage> {
     if (item.status != JobStatus.processing || item.taskId == null) return;
     setState(() => item.detail = '正在请求取消后台任务…');
     try {
-      await _api!.cancelTask(item.taskId!, _session!.token);
+      await _requireApi.cancelTask(item.taskId!, _requireSession.token);
       if (!mounted) return;
       setState(() {
         item.status = JobStatus.cancelled;
@@ -390,7 +406,7 @@ class _UploadHomePageState extends State<UploadHomePage> {
       await Future<void>.delayed(const Duration(seconds: 5));
       if (!mounted || item.status != JobStatus.processing) return;
       try {
-        final task = await _api!.taskForAsset(assetId, _session!.token);
+        final task = await _requireApi.taskForAsset(assetId, _requireSession.token);
         if (task == null) continue;
         if (!mounted || item.status != JobStatus.processing) return;
         final progress = task.progressTotal > 0
@@ -640,7 +656,7 @@ class _UploadHomePageState extends State<UploadHomePage> {
             TextButton.icon(
               onPressed: _loggedIn ? _logout : _showLogin,
               icon: Icon(_loggedIn ? Icons.logout : Icons.person_outline),
-              label: Text(_loggedIn ? '退出 ${_session!.displayName}' : '登录'),
+              label: Text(_loggedIn ? '退出 ${_requireSession.displayName}' : '登录'),
             ),
             const SizedBox(width: 8),
           ],
